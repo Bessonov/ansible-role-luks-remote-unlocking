@@ -1,0 +1,40 @@
+---
+- name: install unlock tools
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - cryptsetup
+    - initramfs-tools
+    - dropbear
+
+- name: let initramfs load network driver
+  lineinfile:
+    dest: /etc/initramfs-tools/modules
+    line: "{{ hostvars[inventory_hostname]['ansible_' + luks_remote_bind_to_network_device]['module'] }}"
+  notify:
+    - initramfs config changed
+
+- name: configure initramfs
+  copy:
+    content: |
+      DEVICE={{ luks_remote_bind_to_network_device }}
+      IP={{ hostvars[inventory_hostname]['ansible_' + luks_remote_bind_to_network_device]['ipv4']['address'] }}::{{ ansible_default_ipv4.gateway }}:{{ hostvars[inventory_hostname]['ansible_' + luks_remote_bind_to_network_device]['ipv4']['netmask'] }}:{{ ansible_hostname }}:{{ luks_remote_bind_to_network_device }}:off
+    dest: /etc/initramfs-tools/conf.d/network.conf
+    force: yes
+  notify:
+    - initramfs config changed
+
+- name: configure dropbear
+  copy:
+    content: |
+      DROPBEAR_OPTIONS="-p {{ luks_remote_bind_port }} -s -j -k -I 60"
+    dest: /etc/dropbear-initramfs/config
+    force: yes
+
+- name: copy ssh keys
+  authorized_key:
+    user: root
+    path: /etc/dropbear-initramfs/authorized_keys
+    key: "{{ item }}"
+  with_items: "{{ luks_remote_public_keys | mandatory }}"

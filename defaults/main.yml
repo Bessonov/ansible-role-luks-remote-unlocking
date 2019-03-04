@@ -1,0 +1,7 @@
+---
+
+# which interface should be used for unlocking
+luks_remote_bind_to_network_device: eth0
+
+# which port should be used for unlocking
+luks_remote_bind_port: 2244
